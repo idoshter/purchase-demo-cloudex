@@ -34,7 +34,7 @@ export default function Home() {
           first_name: userInfo.data.given_name,
           last_name: userInfo.data.family_name,
           picture: userInfo.data.picture,
-          // Add other fields if needed by base44/app
+
         };
 
         loginWithGoogle(user);

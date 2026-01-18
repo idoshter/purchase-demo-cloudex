@@ -1,7 +1,4 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
-import { appParams } from '@/lib/app-params';
-import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
 
 const AuthContext = createContext();
 
@@ -9,115 +6,24 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
-  const [authError, setAuthError] = useState(null);
-  const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
 
   useEffect(() => {
-    checkAppState();
+    checkUserAuth();
   }, []);
 
-  const checkAppState = async () => {
-    // Check for Google User first (Local Auth)
+  const checkUserAuth = () => {
+    setIsLoadingAuth(true);
     const storedGoogleUser = localStorage.getItem('googleUser');
     if (storedGoogleUser) {
-      setUser(JSON.parse(storedGoogleUser));
-      setIsAuthenticated(true);
-      // We still continue to check public settings, but auth is established
-    }
-
-    try {
-      setIsLoadingPublicSettings(true);
-      setAuthError(null);
-
-      // First, check app public settings (with token if available)
-      // This will tell us if auth is required, user not registered, etc.
-      const appClient = createAxiosClient({
-        baseURL: `/api/apps/public`,
-        headers: {
-          'X-App-Id': appParams.appId
-        },
-        token: appParams.token, // Include token if available
-        interceptResponses: true
-      });
-
       try {
-        const publicSettings = await appClient.get(`/prod/public-settings/by-id/${appParams.appId}`);
-        setAppPublicSettings(publicSettings);
-
-        // If we got the app public settings successfully, check if user is authenticated
-        // Check for token based auth if no google user
-        if (!storedGoogleUser && appParams.token) {
-          await checkUserAuth();
-        } else if (!storedGoogleUser) {
-          // No google user and no token
-          // maintain current state (false)
-        }
-        setIsLoadingAuth(false); // Auth check done
-        setIsLoadingPublicSettings(false);
-      } catch (appError) {
-        console.error('App state check failed:', appError);
-        // ... (Error handling code remains similar, truncated for brevity if unchanged logic needed mostly)
-        // Re-implementing the error handling block fully to ensure context consistency
-        if (appError.status === 403 && appError.data?.extra_data?.reason) {
-          const reason = appError.data.extra_data.reason;
-          if (reason === 'auth_required') {
-            setAuthError({
-              type: 'auth_required',
-              message: 'Authentication required'
-            });
-          } else if (reason === 'user_not_registered') {
-            setAuthError({
-              type: 'user_not_registered',
-              message: 'User not registered for this app'
-            });
-          } else {
-            setAuthError({
-              type: reason,
-              message: appError.message
-            });
-          }
-        } else {
-          setAuthError({
-            type: 'unknown',
-            message: appError.message || 'Failed to load app'
-          });
-        }
-        setIsLoadingPublicSettings(false);
-        setIsLoadingAuth(false);
-      }
-    } catch (error) {
-      console.error('Unexpected error:', error);
-      setAuthError({
-        type: 'unknown',
-        message: error.message || 'An unexpected error occurred'
-      });
-      setIsLoadingPublicSettings(false);
-      setIsLoadingAuth(false);
-    }
-  };
-
-  const checkUserAuth = async () => {
-    try {
-      // Now check if the user is authenticated
-      setIsLoadingAuth(true);
-      const currentUser = await base44.auth.me();
-      setUser(currentUser);
-      setIsAuthenticated(true);
-      setIsLoadingAuth(false);
-    } catch (error) {
-      console.error('User auth check failed:', error);
-      setIsLoadingAuth(false);
-      setIsAuthenticated(false);
-
-      // If user auth fails, it might be an expired token
-      if (error.status === 401 || error.status === 403) {
-        setAuthError({
-          type: 'auth_required',
-          message: 'Authentication required'
-        });
+        setUser(JSON.parse(storedGoogleUser));
+        setIsAuthenticated(true);
+      } catch (e) {
+        console.error("Failed to parse stored user", e);
+        localStorage.removeItem('googleUser');
       }
     }
+    setIsLoadingAuth(false);
   };
 
   const loginWithGoogle = (googleUser) => {
@@ -126,23 +32,16 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem('googleUser', JSON.stringify(googleUser));
   };
 
-  const logout = (shouldRedirect = true) => {
+  const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem('googleUser');
-
-    if (shouldRedirect) {
-      // Force redirect to home/login page
-      window.location.href = '/';
-    } else {
-      // Just remove the token without redirect
-      // base44.auth.logout(); // Removing this as it might be causing issues or doing nothing
-    }
+    window.location.href = '/';
   };
 
   const navigateToLogin = () => {
-    // Use the SDK's redirectToLogin method
-    base44.auth.redirectToLogin(window.location.href);
+    // For now, redirect to home which should show login if not authenticated
+    window.location.href = '/';
   };
 
   return (
@@ -150,13 +49,10 @@ export const AuthProvider = ({ children }) => {
       user,
       isAuthenticated,
       isLoadingAuth,
-      isLoadingPublicSettings,
-      authError,
-      appPublicSettings,
       logout,
       navigateToLogin,
-      checkAppState,
-      loginWithGoogle // Exporting new function
+      loginWithGoogle,
+      checkAppState: checkUserAuth // Backward compatibility alias
     }}>
       {children}
     </AuthContext.Provider>
