@@ -16,13 +16,12 @@ The system consists of two main components:
 
 1.  **Backend (ProducerAgent)**: Python-based agent (Google ADK) managing inventory logic and SQLite database.
 2.  **Frontend**: React application (Vite + TailwindCSS) serving as the chat interface.
-    *   *Note*: The frontend includes integrations with **Base44** for authentication and SDK features.
+    *   *Note*: The frontend includes authentication and SDK features.
 
 ```mermaid
 graph TD
     User[User] -->|Chat| Frontend[React Frontend]
-    Frontend -->|API Calls| Base44[Base44 App / Auth]
-    Frontend -->|Proxy| CloudRun[Producer Agent (Cloud Run)]
+    Frontend -->|Proxy| CloudRun["Producer Agent (Cloud Run)"]
     CloudRun -->|Tools| DB[(SQLite Database)]
 ```
 
@@ -87,6 +86,6 @@ Here are the tested flows to interact with the bot effectively.
 
 ## 🛠 Technology Stack
 
--   **Frontend**: React, Vite, TailwindCSS, Base44 SDK
+-   **Frontend**: React, Vite, TailwindCSS
 -   **Backend**: Python, Google ADK
 -   **Infrastructure**: Docker, Nginx, Google Cloud Run
